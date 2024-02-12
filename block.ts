@@ -1,84 +1,70 @@
 import * as fs from 'fs';
-import * as crypto from 'crypto';
 
-class Block {
-    public previousHash: string;
-    public transactions: any[];
-    public timestamp: number;
-    public nonce: number;
-    public hash: string;
-
-    constructor(previousHash: string, transactions: any[]) {
-        this.previousHash = previousHash;
-        this.transactions = transactions;
-        this.timestamp = Date.now();
-        this.nonce = 0;
-        this.hash = this.calculateHash();
-    }
-
-    calculateHash(): string {
-        const blockString =
-            this.previousHash +
-            JSON.stringify(this.transactions) +
-            this.timestamp +
-            this.nonce;
-        return crypto.createHash('sha256').update(blockString).digest('hex');
-    }
-
-    mineBlock(difficulty: number): void {
-        const targetPrefix = Array(difficulty + 1).join('0');
-
-        while (this.hash.substring(0, difficulty) !== targetPrefix) {
-            this.nonce++;
-            this.hash = this.calculateHash();
-        }
-    }
+interface Transaction {
+    txid: string;
+    fee: number;
+    weight: number;
+    parentTxids: string[];
 }
 
-function createGenesisBlock(): Block {
-    return new Block('0', [
-        { sender: 'Genesis', recipient: 'Genesis', amount: 0 },
-    ]);
-}
-
-function readTransactionsFromCSV(csvFilePath: string): any[] {
+function readMempoolData(csvFilePath: string): Transaction[] {
     const csvData = fs.readFileSync(csvFilePath, 'utf-8');
-    const lines = csvData.split('\n');
-    const transactions = lines.slice(0, 3).map((line) => {
-        const [sender, recipient, amount] = line.split(',');
-        return { sender, recipient, amount: parseFloat(amount) };
-    });
+    const transactions: Transaction[] = csvData
+        .split('\n')
+        .map((line) => {
+            if (!line.trim()) return null; // Skip empty lines
+            const [txid, fee, weight, parentTxids] = line.split(',');
+            const parsedParentTxids = parentTxids?.split(',').filter(Boolean);
+            return {
+                txid,
+                fee: parseFloat(fee),
+                weight: parseInt(weight),
+                parentTxids: parsedParentTxids,
+            };
+        })
+        .filter(
+            (transaction): transaction is Transaction => transaction !== null
+        ); // Use filter with type assertion
 
     return transactions;
 }
 
-function createBlockchain(csvFilePath: string, difficulty: number): Block[] {
-    const blockchain: Block[] = [createGenesisBlock()];
-    const transactions = readTransactionsFromCSV(csvFilePath);
+function getMaxFeeBlock(transactions: Transaction[]): string[] {
+    const sortedTransactions = transactions.sort((a, b) => b.fee - a.fee); // Sort by fee in descending order
+    const includedTxids: Set<string> = new Set();
 
-    for (const transaction of transactions) {
-        const previousBlock = blockchain[blockchain.length - 1];
-        const newBlock = new Block(previousBlock.hash, [transaction]);
-        newBlock.mineBlock(difficulty);
-        blockchain.push(newBlock);
+    for (const transaction of sortedTransactions) {
+        if (!isValidTransaction(transaction, includedTxids)) {
+            continue;
+        }
+
+        includedTxids.add(transaction.txid);
     }
 
-    return blockchain;
+    return Array.from(includedTxids);
 }
 
-function printBlockchain(blockchain: Block[]): void {
-    for (const block of blockchain) {
-        console.log(block);
+function isValidTransaction(
+    transaction: Transaction,
+    includedTxids: Set<string>
+): boolean {
+    for (const parentTxid of transaction?.parentTxids) {
+        if (!includedTxids.has(parentTxid)) {
+            return false; // Parent transaction not included
+        }
     }
+
+    return true;
 }
 
-const csvFilePath = './mempool.csv';
+// Replace 'mempool.csv' with the actual path to your mempool CSV file
+const csvFilePath = './test.csv';
 
-// Set the difficulty level for proof-of-work
-const difficultyLevel = 3;
+// Read mempool data
+const mempoolData = readMempoolData(csvFilePath);
 
-// Create blockchain
-const blockchain = createBlockchain(csvFilePath, difficultyLevel);
+// Get the maximum fee block
+const maxFeeBlock = getMaxFeeBlock(mempoolData);
 
-// Print blockchain
-printBlockchain(blockchain);
+// Output the result
+console.log(maxFeeBlock.join('\n'));
