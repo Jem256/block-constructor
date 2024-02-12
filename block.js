@@ -9,7 +9,7 @@ function readMempoolData(csvFilePath) {
         if (!line.trim())
             return null; // Skip empty lines
         var _a = line.split(','), txid = _a[0], fee = _a[1], weight = _a[2], parentTxids = _a[3];
-        var parsedParentTxids = parentTxids === null || parentTxids === void 0 ? void 0 : parentTxids.split(',').filter(Boolean);
+        var parsedParentTxids = parentTxids.split(',').filter(Boolean);
         return {
             txid: txid,
             fee: parseFloat(fee),
@@ -33,7 +33,7 @@ function getMaxFeeBlock(transactions) {
     return Array.from(includedTxids);
 }
 function isValidTransaction(transaction, includedTxids) {
-    for (var _i = 0, _a = transaction === null || transaction === void 0 ? void 0 : transaction.parentTxids; _i < _a.length; _i++) {
+    for (var _i = 0, _a = transaction.parentTxids; _i < _a.length; _i++) {
         var parentTxid = _a[_i];
         if (!includedTxids.has(parentTxid)) {
             return false; // Parent transaction not included

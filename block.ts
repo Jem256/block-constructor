@@ -14,7 +14,7 @@ function readMempoolData(csvFilePath: string): Transaction[] {
         .map((line) => {
             if (!line.trim()) return null; // Skip empty lines
             const [txid, fee, weight, parentTxids] = line.split(',');
-            const parsedParentTxids = parentTxids?.split(',').filter(Boolean);
+            const parsedParentTxids = parentTxids.split(',').filter(Boolean);
             return {
                 txid,
                 fee: parseFloat(fee),
@@ -48,7 +48,7 @@ function isValidTransaction(
     transaction: Transaction,
     includedTxids: Set<string>
 ): boolean {
-    for (const parentTxid of transaction?.parentTxids) {
+    for (const parentTxid of transaction.parentTxids) {
         if (!includedTxids.has(parentTxid)) {
             return false; // Parent transaction not included
         }
@@ -58,7 +58,7 @@ function isValidTransaction(
 }
 
 // Replace 'mempool.csv' with the actual path to your mempool CSV file
-const csvFilePath = './test.csv';
+const csvFilePath = './mempool.csv';
 
 // Read mempool data
 const mempoolData = readMempoolData(csvFilePath);
